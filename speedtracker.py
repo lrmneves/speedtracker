@@ -1,93 +1,17 @@
 import cv2
 import numpy as np
-from math import ceil
 import scipy as sp
 import scipy.ndimage.morphology
 import math
-import subprocess
-import re
-from decimal import Decimal
-import os
-import json
 
-class Car:
-	threshold = 20
-	def __init__(self,color,y0,y1,x0,x1):
-		self.color = color
-		self.x0 = x0
-		self.x1 = x1
-		self.y0 = y0
-		self.y1 = y1
-		self.centroid_x = x0 + (x1 - x0)/2
-		self.centroid_y = y0 + (y1 - y0)/2
-		self.frameCount = 1
+from variables import *
+from util import *
+from car import *
 
-	def calculateDistance(self,y0,y1,x0,x1):
-		x = x0 + (x1 - x0)/2
-		y = y0 + (y1 - y0)/2
-		return math.sqrt((x-self.centroid_x)**2 + (y - self.centroid_y)**2)
-	
-	def passSpeedMark(self):
-		if direction == LEFT_TO_RIGHT:
-
-			if self.centroid_x > (areaOfInterest[1][0]-areaOfInterest[0][0] - (areaOfInterest[1][0]-areaOfInterest[0][0])*0.3):
-		
-				return True
-			return False
-		elif direction == RIGHT_TO_LEFT:
-			if self.x0 < (areaOfInterest[0][0] + (areaOfInterest[1][0]-areaOfInterest[0][0])*0.3):
-				return True
-			return False
-		elif direction == TOP_DOWN:
-			return
-		else:
-			return
-
-	def updateCentroid(self,y0,y1,x0,x1):
-		dist = self.calculateDistance(y0,y1,x0,x1)
-		if dist < threshold:
-
-			self.centroid_x = x0 + (x1 - x0)/2
-			self.centroid_y = y0 + (y1 - y0)/2
-			self.x0 = x0
-			self.y0 = y0
-			self.x1 = x1
-			self.y1 = y1
-
-			return True
-
-		return False
-
-	def getCentroid(self):
-		return (self.centroid_x,self.centroid_y)
-	def getColor(self):
-		return self.color
-	def getFrameCount(self):
-		return self.frameCount
-	def drawBoxAround(self,image):
-		drawRectangle(image,areaOfInterest[0][1] + self.y0, areaOfInterest[0][1] + self.y1, 
-			areaOfInterest[0][0] + self.x0, areaOfInterest[0][0] + self.x1)
-	def incrementFrameCount(self):
-		self.frameCount +=1
-
-def calculateSpeed(car):
-	global lastSpeed,areaOfInterestWidth,fps
-	elapsedTime = car.getFrameCount()/fps
-	lastSpeed = (areaOfInterestWidth/elapsedTime)*3.6 #in km/h
-
-def get_video_len(filename):
-   result = subprocess.Popen(["ffprobe", filename, '-print_format', 'json', '-show_streams', '-loglevel', 'quiet'],
-     stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
-   return float(json.loads(result.stdout.read())['streams'][0]['duration'])
-
-def calculateIntensity(image):
-	global x0,x1,y0,y1
-	image = image[y0:y1,x0:x1]
-	return cv2.convertScaleAbs(np.dot(image[...,:3], [0.07 ,0.72,0.21]))#transform to gray
 
 # @profile
 def getMovingObjects(image,image_1,image_2):
-	global bgMatrix, threshold,x0,x1,y0,y1
+	global bgMatrix
 
 	moving_1 = image - image_1 
 
@@ -162,7 +86,7 @@ def getObjectAreas(image):
 
 # @profile
 def clusterObjectPoints(image):
-	global lastNumber,carList
+	global lastNumber,carList,fps,lastSpeed
 
 	imageValues = image.copy()
 	image = getObjectAreas(image)
@@ -208,7 +132,7 @@ def clusterObjectPoints(image):
 							carList.append(car)
 					if removeCar != None:
 						carList.remove(removeCar)
-						calculateSpeed(removeCar)
+						lastSpeed = calculateSpeed(removeCar,fps)
 						del removeCar
 
 	
@@ -229,60 +153,25 @@ def trackCar(cap,oldFrame_1,oldFrame_2,oldFrame_3,showFrame,x0,x1,y0,y1):
 
 	return newFrame,oldFrame_1,oldFrame_2,showFrame
 
-def drawRectangleOfInterest(image,areaOfInterest):
-	
-	cv2.line(image,areaOfInterest[0],(areaOfInterest[1][0],areaOfInterest[0][1]),(0,0,255),5)
-	cv2.line(image,(areaOfInterest[0][0],areaOfInterest[1][1]),areaOfInterest[1],(0,0,255),5)
 
-	cv2.line(image,areaOfInterest[0],(areaOfInterest[0][0],areaOfInterest[1][1]),(0,255,0),5)
-	cv2.line(image,(areaOfInterest[1][0],areaOfInterest[0][1]),areaOfInterest[1],(0,255,0),5)
-
-def drawRectangle(image,y0,y1,x0,x1):	
-	cv2.line(image,(x0,y0),(x1,y0),(0,0,255),5)
-	cv2.line(image,(x0,y0),(x0,y1),(0,0,255),5)
-	cv2.line(image,(x1,y0),(x1,y1),(0,0,255),5)
-	cv2.line(image,(x0,y1),(x1,y1),(0,0,255),5)
 
 cap = cv2.VideoCapture()
-video = "video1.mov"
 cap.open(video)
 flag, frame = cap.read()
 #calculate video size and fps
 totalFrames = cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT)
 totalSeconds = get_video_len(os.getcwd() + "/"+video)
+
 fps = totalFrames/totalSeconds
 
 
-winName = "Movement Indicator"
 cv2.namedWindow(winName, cv2.CV_WINDOW_AUTOSIZE)
 #area to calculate speed
 #video4
-areaOfInterest = [(300,250),(800,630)] 
-#video2
-# areaOfInterest = [(100,150),(450,200)] 
-x0 = areaOfInterest[0][0]
-x1 = areaOfInterest[1][0]
-y0 = areaOfInterest[0][1]
-y1 = areaOfInterest[1][1]
-#define in meter the aprox width of the area
-areaOfInterestWidth = 8
-#direction of the cars
-LEFT_TO_RIGHT = "leftToRight"
-RIGHT_TO_LEFT = "rightToLeft"
-TOP_DOWN = "topDown"
-BOTTOM_UP = "bottomUp"
-direction = LEFT_TO_RIGHT
-
-importantPoints = []
-carList = []
-lastNumber = 0
-lastSpeed = 0
 
 oldFrame_3 = calculateIntensity(frame)
 #Detecting background
 bgMatrix = oldFrame_3.copy()
-
-threshold = 50
 
 flag,oldFrame_2 = cap.read()
 oldFrame_2 = calculateIntensity(oldFrame_2)
@@ -292,8 +181,8 @@ showFrameVideo = oldFrame_1.copy()
 
 
 pos_frame = cap.get(cv2.cv.CV_CAP_PROP_POS_FRAMES)
-font = cv2.FONT_HERSHEY_SIMPLEX
-
+lastNumber = 0
+lastSpeed = 0
 
 # testFunctions()
 while True:
@@ -314,8 +203,6 @@ while True:
     		cv2.putText(showFrameVideo,str(int(lastSpeed)) + " km/h",textPosition, font, 2,(255,255,255),2)
 
     	
-    	# cv2.waitKey(10000)
-
         cv2.imshow(winName,showFrameVideo)
         showFrameVideo = oldFrame_1.copy()
 
