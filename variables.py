@@ -25,8 +25,7 @@ direction = LEFT_TO_RIGHT
 
 importantPoints = []
 carList = []
-lastNumber = 0
-lastSpeed = 0
+
 
 threshold = 50
 

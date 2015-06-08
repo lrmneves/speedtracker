@@ -3,13 +3,14 @@ import numpy as np
 import scipy as sp
 import scipy.ndimage.morphology
 import math
+from timer import Timer
 
 from variables import *
 from util import *
 from car import *
 
 
-# @profile
+@profile
 def getMovingObjects(image,image_1,image_2):
 	global bgMatrix
 
@@ -26,13 +27,12 @@ def getMovingObjects(image,image_1,image_2):
 	isShadow[(np.where((isShadow > 0.23) & (isShadow < 0.95)))] = 0 
 	isShadow[(np.where((isShadow < 0.23) & (isShadow > 0.95)))] = 255
 	
+
 	image = np.multiply(image,moving_1)
-
 	image = np.multiply(image,moving_2)
-
-	image = np.multiply(image,notBg)
-
+	image = np.multiply(image,notBg)     
 	image = np.multiply(image,isShadow)
+
 
 	return image
 
@@ -81,10 +81,11 @@ def getObjectAreas(image):
 
 
 	
-	
+	cv2.imwrite("area.png",imageCp)
+
 	return imageCp
 
-# @profile
+@profile
 def clusterObjectPoints(image):
 	global lastNumber,carList,fps,lastSpeed
 
@@ -92,7 +93,6 @@ def clusterObjectPoints(image):
 	image = getObjectAreas(image)
 	
 	objects, num_objects = sp.ndimage.label(image,np.ones((3,3)))
-
 
 	if num_objects > 0:
 
@@ -139,7 +139,7 @@ def clusterObjectPoints(image):
 	lastNumber = num_objects
 	return image
 
-# @profile 
+@profile 
 def trackCar(cap,oldFrame_1,oldFrame_2,oldFrame_3,showFrame,x0,x1,y0,y1):
 	
 	flag,newFrame = cap.read()
@@ -154,7 +154,7 @@ def trackCar(cap,oldFrame_1,oldFrame_2,oldFrame_3,showFrame,x0,x1,y0,y1):
 	return newFrame,oldFrame_1,oldFrame_2,showFrame
 
 
-
+# def main():
 cap = cv2.VideoCapture()
 cap.open(video)
 flag, frame = cap.read()
@@ -166,7 +166,6 @@ fps = totalFrames/totalSeconds
 
 
 cv2.namedWindow(winName, cv2.CV_WINDOW_AUTOSIZE)
-#area to calculate speed
 #video4
 
 oldFrame_3 = calculateIntensity(frame)
@@ -186,32 +185,36 @@ lastSpeed = 0
 
 # testFunctions()
 while True:
-    if flag:
-    	drawRectangleOfInterest(showFrameVideo,areaOfInterest)
+	if flag:
 
-    	oldFrame_1,oldFrame_2,oldFrame_3,showFrameVideo = trackCar(cap,oldFrame_1,oldFrame_2,oldFrame_3,showFrameVideo,x0,x1,y0,y1)
+		drawRectangleOfInterest(showFrameVideo,areaOfInterest)
+		# with Timer(True) as t:
+		oldFrame_1,oldFrame_2,oldFrame_3,showFrameVideo = trackCar(cap,oldFrame_1,oldFrame_2,oldFrame_3,showFrameVideo,x0,x1,y0,y1)
 
-    	for car in carList:
-    		car.drawBoxAround(showFrameVideo)
-    	if lastSpeed != 0:
-    		#video1
-    		textPosition = (10,200)
-    		#video2
-    		#
-    		#video3
-    		# textPosition = (30,50)
-    		cv2.putText(showFrameVideo,str(int(lastSpeed)) + " km/h",textPosition, font, 2,(255,255,255),2)
 
-    	
-        cv2.imshow(winName,showFrameVideo)
-        showFrameVideo = oldFrame_1.copy()
+		for car in carList:
+			car.drawBoxAround(showFrameVideo)
+		if lastSpeed != 0:
+			#video1
+			textPosition = (10,200)
+			#video2
+			#
+			#video3
+			# textPosition = (30,50)
+			cv2.putText(showFrameVideo,str(int(lastSpeed)) + " km/h",textPosition, font, 2,(255,255,255),2)
 
-        pos_frame = cap.get(cv2.cv.CV_CAP_PROP_POS_FRAMES)
-    else:
-        cap.set(cv2.cv.CV_CAP_PROP_POS_FRAMES, pos_frame-1)
-        cv2.waitKey(1000)
-    if cv2.waitKey(10) == 27:
-        break
-    if cap.get(cv2.cv.CV_CAP_PROP_POS_FRAMES) == cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT):
-        break
+		
+		cv2.imshow(winName,showFrameVideo)
+		cv2.imwrite("radar.png",showFrameVideo)
+
+		showFrameVideo = oldFrame_1.copy()
+
+		pos_frame = cap.get(cv2.cv.CV_CAP_PROP_POS_FRAMES)
+	else:
+	    cap.set(cv2.cv.CV_CAP_PROP_POS_FRAMES, pos_frame-1)
+	    cv2.waitKey(1000)
+	if cv2.waitKey(10) == 27:
+	    break
+	if cap.get(cv2.cv.CV_CAP_PROP_POS_FRAMES) == cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT):
+	    break
 
