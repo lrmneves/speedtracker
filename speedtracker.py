@@ -10,7 +10,7 @@ from util import *
 from car import *
 
 
-@profile
+# @profile
 def getMovingObjects(image,image_1,image_2):
 	global bgMatrix
 
@@ -29,6 +29,7 @@ def getMovingObjects(image,image_1,image_2):
 	
 
 	image = np.multiply(image,moving_1)
+
 	image = np.multiply(image,moving_2)
 	image = np.multiply(image,notBg)     
 	image = np.multiply(image,isShadow)
@@ -85,7 +86,7 @@ def getObjectAreas(image):
 
 	return imageCp
 
-@profile
+# @profile
 def clusterObjectPoints(image):
 	global lastNumber,carList,fps,lastSpeed
 
@@ -139,7 +140,7 @@ def clusterObjectPoints(image):
 	lastNumber = num_objects
 	return image
 
-@profile 
+# @profile 
 def trackCar(cap,oldFrame_1,oldFrame_2,oldFrame_3,showFrame,x0,x1,y0,y1):
 	
 	flag,newFrame = cap.read()
@@ -205,7 +206,6 @@ while True:
 
 		
 		cv2.imshow(winName,showFrameVideo)
-		cv2.imwrite("radar.png",showFrameVideo)
 
 		showFrameVideo = oldFrame_1.copy()
 
